@@ -1,0 +1,585 @@
+<title>Архив диалогов Claude</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Unbounded:wght@500;600&display=swap">
+<style>
+/* Layout: phone-first two-screen app (list → chat), side-by-side panes from 900px */
+:root {
+  --bg: #e9edf1;
+  --surface: #ffffff;
+  --fg: #16202b;
+  --muted: #5a6876;
+  --line: #d3dae1;
+  --accent: #2550b8;
+  --accent-soft: #dfe7fa;
+  --gone: #8a6a2f;
+  --gone-soft: #f3ead8;
+  --code-bg: #f2f4f7;
+  --mark: #ffe28a;
+  --font-display: "Unbounded", "Golos Text", system-ui, sans-serif;
+  --font-body: "Golos Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1318; --surface: #161e26; --fg: #e2e8ee; --muted: #8d9aa7; --line: #26313c;
+    --accent: #86a8ff; --accent-soft: #1d2a47; --gone: #d9b26a; --gone-soft: #2b2416;
+    --code-bg: #0f151b; --mark: #6b5310; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1318; --surface: #161e26; --fg: #e2e8ee; --muted: #8d9aa7; --line: #26313c;
+  --accent: #86a8ff; --accent-soft: #1d2a47; --gone: #d9b26a; --gone-soft: #2b2416;
+  --code-bg: #0f151b; --mark: #6b5310; color-scheme: dark;
+}
+
+html { height: 100%; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  height: 100%; margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.55 var(--font-body); -webkit-text-size-adjust: 100%;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.app { height: 100%; display: grid; grid-template-columns: 1fr; }
+.pane { height: 100%; overflow-y: auto; overscroll-behavior: contain; min-width: 0; }
+.gut { padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
+.app[data-view="list"] .chat-pane { display: none; }
+.app[data-view="chat"] .list-pane { display: none; }
+@media (min-width: 900px) {
+  .app, .app[data-view] { grid-template-columns: minmax(320px, 380px) 1fr; }
+  .app[data-view] .list-pane, .app[data-view] .chat-pane { display: block; }
+  .list-pane { border-right: 1px solid var(--line); }
+  .back { display: none !important; }
+}
+
+/* ---------- list pane ---------- */
+.list-head { position: sticky; top: 0; z-index: 2; background: var(--bg); padding-block: 14px 10px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand h1 { margin: 0; font: 600 1.05rem/1.2 var(--font-display); letter-spacing: -0.01em; text-wrap: balance; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 0.85rem; font-weight: 500; white-space: nowrap;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn:active { transform: translateY(1px); }
+.search { position: relative; }
+.search input {
+  width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); font: inherit; font-size: 16px;
+}
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.chip {
+  flex: none; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+  font-size: 0.82rem; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.status { font-size: 0.8rem; color: var(--muted); }
+.status.err { color: var(--gone); }
+.demo-note { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); font-size: 0.85rem; }
+
+.groups { padding-block: 6px 32px; }
+.month { margin: 18px 0 6px; font: 500 0.7rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.items { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.item {
+  width: 100%; text-align: left; border: 0; background: transparent; padding: 10px 10px; border-radius: 12px;
+  display: grid; gap: 3px; cursor: pointer;
+}
+.item:hover { background: var(--surface); }
+.item[aria-current="true"] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.item .t { font-weight: 500; overflow-wrap: anywhere; }
+.item.gone .t { color: var(--muted); font-weight: 400; }
+.item .m { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.item .snip { font-size: 0.82rem; color: var(--muted); overflow-wrap: anywhere; }
+.tag { font: 500 0.68rem/1.6 var(--font-mono); padding: 0 6px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
+.tag.gone { background: var(--gone-soft); color: var(--gone); }
+mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 1px; }
+.empty-list { padding: 40px 0; color: var(--muted); text-align: center; }
+
+/* ---------- chat pane ---------- */
+.chat-pane { background: var(--surface); }
+.chat-head {
+  position: sticky; top: 0; z-index: 2; background: var(--surface); border-bottom: 1px solid var(--line);
+  padding-block: 10px; display: flex; align-items: center; gap: 10px;
+}
+.back { border: 0; background: transparent; font-size: 1.4rem; line-height: 1; padding: 6px 8px 6px 0; cursor: pointer; }
+.chat-title { min-width: 0; flex: 1; }
+.chat-title h2 { margin: 0; font: 600 0.95rem/1.3 var(--font-display); overflow-wrap: anywhere; text-wrap: balance; }
+.chat-title .m { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.thread { max-width: 760px; margin: 0 auto; padding-block: 18px 60px; display: grid; gap: 22px; }
+.placeholder { padding: 80px 0; text-align: center; color: var(--muted); }
+
+.msg { display: grid; gap: 6px; min-width: 0; }
+.msg-meta { display: flex; align-items: center; gap: 8px; font: 0.72rem/1 var(--font-mono); color: var(--muted); }
+.msg-meta .who { font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.copy { margin-left: auto; border: 0; background: transparent; color: var(--muted); font: 0.72rem var(--font-mono); cursor: pointer; padding: 4px; }
+.msg.human { justify-items: end; }
+.msg.human .msg-meta { flex-direction: row-reverse; }
+.msg.human .copy { margin-left: 0; margin-right: auto; }
+.bubble {
+  background: var(--accent-soft); padding: 10px 14px; border-radius: 16px 16px 4px 16px;
+  max-width: min(88%, 620px); white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0;
+}
+.md { min-width: 0; overflow-wrap: anywhere; }
+.md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
+.md h1, .md h2, .md h3, .md h4 { font-family: var(--font-body); font-weight: 600; line-height: 1.3; margin: 1.2em 0 0.4em; text-wrap: balance; }
+.md h1 { font-size: 1.25rem; } .md h2 { font-size: 1.12rem; } .md h3, .md h4 { font-size: 1rem; }
+.md a { color: var(--accent); }
+.md code { font: 0.86em var(--font-mono); background: var(--code-bg); padding: 1px 5px; border-radius: 5px; }
+.md pre { position: relative; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; }
+.md pre code { background: none; padding: 0; font-size: 0.82rem; line-height: 1.5; white-space: pre; overflow-wrap: normal; }
+.md blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
+.md .tbl { overflow-x: auto; }
+.md table { border-collapse: collapse; font-size: 0.88rem; }
+.md th, .md td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; }
+.md hr { border: 0; border-top: 1px solid var(--line); }
+.md ul, .md ol { padding-left: 1.3em; }
+.pre-copy { position: absolute; top: 6px; right: 6px; font: 0.7rem var(--font-mono); padding: 3px 7px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+
+.files { display: flex; flex-wrap: wrap; gap: 6px; }
+.msg.human .files { justify-content: flex-end; }
+.file { font: 0.75rem var(--font-mono); padding: 4px 8px; border-radius: 8px; border: 1px dashed var(--line); color: var(--muted); overflow-wrap: anywhere; }
+
+details.steps { border: 1px solid var(--line); border-radius: 12px; font-size: 0.85rem; min-width: 0; }
+details.steps > summary { cursor: pointer; padding: 8px 12px; color: var(--muted); list-style-position: inside; }
+.steps-body { padding: 0 12px 12px; display: grid; gap: 10px; min-width: 0; }
+.step { display: grid; gap: 4px; min-width: 0; }
+.step-h { font: 500 0.75rem var(--font-mono); color: var(--accent); }
+.step-h.err { color: var(--gone); }
+.step pre { margin: 0; background: var(--code-bg); border-radius: 8px; padding: 8px 10px; font: 0.76rem/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
+.step ul { margin: 0; padding-left: 1.2em; }
+.step a { color: var(--accent); }
+
+.gone-card { border-radius: 14px; background: var(--gone-soft); padding: 16px; display: grid; gap: 8px; }
+.gone-card h3 { margin: 0; font: 600 0.95rem var(--font-display); color: var(--gone); }
+.gone-card p { margin: 0; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; }
+
+/* highlight.js tokens via theme colors */
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-type { color: var(--accent); }
+.hljs-string, .hljs-attr, .hljs-template-variable { color: var(--gone); }
+.hljs-comment, .hljs-quote, .hljs-meta { color: var(--muted); font-style: italic; }
+.hljs-number, .hljs-literal, .hljs-title { font-weight: 500; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 10px; font-size: 0.85rem; z-index: 10; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app" id="app" data-view="list">
+  <aside class="pane list-pane" id="listPane">
+    <div class="list-head gut">
+      <div class="brand">
+        <h1>Архив диалогов</h1>
+        <label class="btn primary" for="fileInput">Открыть файл</label>
+        <input class="sr-only" type="file" id="fileInput" multiple accept=".zip,.json,application/zip,application/json">
+      </div>
+      <div class="search">
+        <label class="sr-only" for="q">Поиск по диалогам</label>
+        <input id="q" type="search" placeholder="Поиск по названию и тексту" autocomplete="off">
+      </div>
+      <div class="chips" role="group" aria-label="Какие диалоги показывать">
+        <button class="chip" data-filter="filled" aria-pressed="true">С текстом <span data-count="filled"></span></button>
+        <button class="chip" data-filter="gone" aria-pressed="false">Удалённые <span data-count="gone"></span></button>
+        <button class="chip" data-filter="all" aria-pressed="false">Все <span data-count="all"></span></button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+    <div class="gut">
+      <div class="demo-note" id="demoNote" hidden>Сейчас показан пример. Нажми «Открыть файл» и выбери zip из письма Anthropic (или conversations.json). Файл обрабатывается только в этом браузере и запоминается на устройстве.</div>
+      <div class="groups" id="groups"></div>
+    </div>
+  </aside>
+
+  <main class="pane chat-pane" id="chatPane">
+    <div class="placeholder gut" id="placeholder">Выбери диалог слева</div>
+    <div id="chat" hidden>
+      <div class="chat-head gut">
+        <button class="back" id="back" aria-label="Назад к списку">←</button>
+        <div class="chat-title"><h2 id="chatTitle"></h2><div class="m" id="chatMeta"></div></div>
+        <button class="btn" id="copyChat">Копировать</button>
+      </div>
+      <div class="gut"><div class="thread" id="thread"></div></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+const state = { convs: [], filter: "filled", q: "", currentId: null, demo: true, pushed: false };
+
+/* ---------- formatting helpers ---------- */
+function plural(n, one, few, many) {
+  const a = n % 10, b = n % 100;
+  if (a === 1 && b !== 11) return one;
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
+  return many;
+}
+const fmtDate = (iso) => new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
+const fmtTime = (iso) => new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+function monthLabel(iso) {
+  const s = new Date(iso).toLocaleDateString("ru-RU", { month: "long", year: "numeric" }).replace(/\s*г\.?$/, "");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function toast(text) {
+  const t = $("#toast");
+  t.textContent = text; t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { t.hidden = true; }, 1800);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast("Скопировано"); }
+  catch { toast("Не удалось скопировать: выдели текст вручную"); }
+}
+
+/* ---------- data preparation ---------- */
+// The export keeps deleted chats as skeletons: no name and no text, only ids and timestamps.
+const isFilledMsg = (m) => Boolean(m.text || (m.content && m.content.length) || (m.attachments && m.attachments.length));
+function messageText(m) {
+  if (m.content && m.content.length) return m.content.filter((p) => p.type === "text").map((p) => p.text || "").join("\n\n");
+  return m.text || "";
+}
+function prepare(raw) {
+  return raw.map((c) => {
+    const msgs = c.chat_messages || [];
+    const full = [c.name || "", c.summary || "", ...msgs.map(messageText)].join("\n");
+    return {
+      raw: c, id: c.uuid, name: c.name || "", created: c.created_at, updated: c.updated_at || c.created_at,
+      n: msgs.length, filled: msgs.some(isFilledMsg),
+      tools: msgs.reduce((a, m) => a + (m.content || []).filter((p) => p.type === "tool_use").length, 0),
+      files: msgs.reduce((a, m) => a + (m.files || []).length + (m.attachments || []).length, 0),
+      full, search: full.toLowerCase(),
+    };
+  }).sort((a, b) => b.created.localeCompare(a.created));
+}
+// Several export parts can be opened together; the copy with more content wins.
+function merge(lists) {
+  const byId = new Map();
+  for (const c of lists.flat()) {
+    if (!c || !c.uuid) continue;
+    const prev = byId.get(c.uuid);
+    const score = (x) => (x.chat_messages || []).filter(isFilledMsg).length;
+    if (!prev || score(c) > score(prev)) byId.set(c.uuid, c);
+  }
+  return [...byId.values()];
+}
+
+/* ---------- storage (per-device convenience only) ---------- */
+const db = {
+  open() {
+    return new Promise((res, rej) => {
+      try {
+        const r = indexedDB.open("claude-archive", 1);
+        r.onupgradeneeded = () => r.result.createObjectStore("kv");
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      } catch (e) { rej(e); }
+    });
+  },
+  async get(key) {
+    try { const d = await this.open(); return await new Promise((res) => { const r = d.transaction("kv").objectStore("kv").get(key); r.onsuccess = () => res(r.result); r.onerror = () => res(undefined); }); }
+    catch { return undefined; }
+  },
+  async set(key, val) {
+    try { const d = await this.open(); await new Promise((res) => { const t = d.transaction("kv", "readwrite"); t.objectStore("kv").put(val, key); t.oncomplete = res; t.onerror = res; }); }
+    catch { /* storage unavailable: the page still works for this visit */ }
+  },
+  async del(key) {
+    try { const d = await this.open(); await new Promise((res) => { const t = d.transaction("kv", "readwrite"); t.objectStore("kv").delete(key); t.oncomplete = res; t.onerror = res; }); }
+    catch { /* ignore */ }
+  },
+};
+
+/* ---------- loading files ---------- */
+async function readFile(file) {
+  const isZip = /\.zip$/i.test(file.name) || /zip/.test(file.type);
+  if (!isZip) return [JSON.parse(await file.text())];
+  const zip = await JSZip.loadAsync(file);
+  const names = Object.keys(zip.files).filter((n) => /(^|\/)conversations[^/]*\.json$/i.test(n));
+  if (!names.length) throw new Error(`В архиве ${file.name} нет файла conversations.json`);
+  return Promise.all(names.map(async (n) => JSON.parse(await zip.file(n).async("string"))));
+}
+async function loadFiles(fileList) {
+  const files = [...fileList];
+  if (!files.length) return;
+  setStatus("Читаю файл…");
+  try {
+    const parts = (await Promise.all(files.map(readFile))).flat();
+    if (!parts.every(Array.isArray)) throw new Error("Это не похоже на выгрузку Claude: ожидался список диалогов");
+    const raw = merge(parts);
+    await db.set("raw", JSON.stringify(raw));
+    useData(raw, false);
+  } catch (e) {
+    setStatus(`Не получилось открыть: ${e.message}. Нужен zip из письма Anthropic или conversations.json.`, true);
+  }
+}
+function useData(raw, demo) {
+  state.convs = prepare(raw); state.demo = demo; state.currentId = null;
+  $("#demoNote").hidden = !demo;
+  closeChat(true);
+  renderCounts(); renderList();
+  const filled = state.convs.filter((c) => c.filled).length;
+  setStatus(demo ? "" : `${state.convs.length} ${plural(state.convs.length, "диалог", "диалога", "диалогов")}, с текстом ${filled}. <button class="btn" id="forget" style="padding:2px 8px;font-size:.75rem">Забыть файл</button>`);
+}
+function setStatus(html, isErr) {
+  const s = $("#status"); s.innerHTML = html; s.classList.toggle("err", Boolean(isErr));
+}
+
+/* ---------- list ---------- */
+function visibleConvs() {
+  const q = state.q.trim().toLowerCase();
+  return state.convs.filter((c) => (state.filter === "all" || (state.filter === "filled") === c.filled) && (!q || c.search.includes(q)));
+}
+function renderCounts() {
+  const f = state.convs.filter((c) => c.filled).length;
+  const counts = { filled: f, gone: state.convs.length - f, all: state.convs.length };
+  document.querySelectorAll("[data-count]").forEach((el) => { el.textContent = counts[el.dataset.count]; });
+}
+function highlight(text, q) {
+  if (!q) return esc(text);
+  const lower = text.toLowerCase(); let out = "", i = 0, j;
+  while ((j = lower.indexOf(q, i)) !== -1) { out += esc(text.slice(i, j)) + "<mark>" + esc(text.slice(j, j + q.length)) + "</mark>"; i = j + q.length; }
+  return out + esc(text.slice(i));
+}
+function snippet(c, q) {
+  const at = c.search.indexOf(q);
+  if (at < 0 || at < c.name.length) return "";
+  const from = Math.max(0, at - 50), to = Math.min(c.full.length, at + q.length + 80);
+  return (from ? "…" : "") + c.full.slice(from, to).replace(/\s+/g, " ") + (to < c.full.length ? "…" : "");
+}
+function renderList() {
+  const q = state.q.trim().toLowerCase();
+  const items = visibleConvs();
+  const box = $("#groups");
+  if (!items.length) {
+    box.innerHTML = `<div class="empty-list">${q ? "Ничего не нашлось" : "Здесь пусто"}</div>`;
+    return;
+  }
+  let html = "", month = "";
+  for (const c of items) {
+    const m = monthLabel(c.created);
+    if (m !== month) { html += `${month ? "</ul>" : ""}<h3 class="month">${esc(m)}</h3><ul class="items">`; month = m; }
+    const title = c.name || (c.filled ? "Без названия" : "Удалённый диалог");
+    const snip = q ? snippet(c, q) : "";
+    html += `<li><button class="item${c.filled ? "" : " gone"}" data-id="${esc(c.id)}" aria-current="${c.id === state.currentId}">
+      <span class="t">${highlight(title, q)}</span>
+      <span class="m"><span>${fmtDate(c.created)}</span><span>${c.n} ${plural(c.n, "сообщение", "сообщения", "сообщений")}</span>
+        ${c.filled ? "" : '<span class="tag gone">текст удалён</span>'}
+        ${c.filled && c.tools ? '<span class="tag">инструменты</span>' : ""}
+        ${c.filled && c.files ? `<span class="tag">файлы ${c.files}</span>` : ""}</span>
+      ${snip ? `<span class="snip">${highlight(snip, q)}</span>` : ""}
+    </button></li>`;
+  }
+  box.innerHTML = html + "</ul>";
+}
+
+/* ---------- chat rendering ---------- */
+function renderMarkdown(text) {
+  const html = DOMPurify.sanitize(marked.parse(text, { gfm: true, breaks: false }));
+  const wrap = document.createElement("div");
+  wrap.className = "md"; wrap.innerHTML = html;
+  wrap.querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener"; });
+  wrap.querySelectorAll("table").forEach((t) => { const d = document.createElement("div"); d.className = "tbl"; t.replaceWith(d); d.appendChild(t); });
+  wrap.querySelectorAll("pre").forEach((pre) => {
+    const code = pre.querySelector("code");
+    if (code && window.hljs) { try { hljs.highlightElement(code); } catch { /* plain text is fine */ } }
+    const b = document.createElement("button");
+    b.className = "pre-copy"; b.textContent = "копировать";
+    b.addEventListener("click", () => copyText((code || pre).innerText));
+    pre.appendChild(b);
+  });
+  return wrap;
+}
+function clip(s, n = 4000) { s = String(s ?? ""); return s.length > n ? s.slice(0, n) + `\n… (ещё ${s.length - n} симв.)` : s; }
+function renderToolInput(input) {
+  if (!input || typeof input !== "object") return "";
+  if (input.query) return `<pre>${esc(input.query)}</pre>`;
+  if (input.command) return `<pre>${esc(clip(input.command))}</pre>`;
+  if (input.url) return `<pre>${esc(input.url)}</pre>`;
+  return `<pre>${esc(clip(JSON.stringify(input, null, 2)))}</pre>`;
+}
+function renderToolResult(p) {
+  const items = Array.isArray(p.content) ? p.content : [p.content];
+  const links = items.filter((x) => x && x.url);
+  if (links.length) return `<ul>${links.slice(0, 12).map((x) => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title || x.url)}</a></li>`).join("")}</ul>`;
+  const text = items.map((x) => (x && typeof x === "object" ? x.text ?? JSON.stringify(x) : x ?? "")).join("\n");
+  return text.trim() ? `<pre>${esc(clip(text))}</pre>` : "";
+}
+const TOOL_NAMES = { web_search: "поиск", WebSearch: "поиск", web_search_fast: "поиск", web_fetch: "страница", WebFetch: "страница", bash_tool: "команда", Bash: "команда", view: "просмотр файла", Read: "чтение файла", Write: "запись файла", present_files: "файл для тебя", SendUserFile: "файл для тебя" };
+function renderSteps(parts) {
+  const tools = parts.filter((p) => p.type === "tool_use");
+  const label = tools.length ? `Ход работы: ${tools.length} ${plural(tools.length, "действие", "действия", "действий")}` : "Размышления";
+  const d = document.createElement("details");
+  d.className = "steps";
+  let body = "";
+  for (const p of parts) {
+    if (p.type === "thinking") {
+      const sums = (p.summaries || []).map((s) => s.summary).filter(Boolean);
+      body += `<div class="step"><div class="step-h">размышление</div>${sums.length ? `<ul>${sums.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}${p.thinking ? `<pre>${esc(clip(p.thinking))}</pre>` : ""}</div>`;
+    } else if (p.type === "tool_use") {
+      body += `<div class="step"><div class="step-h">${esc(TOOL_NAMES[p.name] || p.name)}${p.message ? " · " + esc(p.message) : ""}</div>${renderToolInput(p.input)}</div>`;
+    } else if (p.type === "tool_result") {
+      const r = renderToolResult(p);
+      if (r || p.is_error) body += `<div class="step"><div class="step-h${p.is_error ? " err" : ""}">${p.is_error ? "ошибка" : "результат"}</div>${r}</div>`;
+    }
+  }
+  d.innerHTML = `<summary>${label}</summary><div class="steps-body">${body}</div>`;
+  return d;
+}
+function fileChips(m) {
+  const names = [
+    ...(m.files || []).map((f) => f.file_name || "файл"),
+    ...(m.content || []).filter((p) => p.type === "document").map((p) => p.title || "документ"),
+  ];
+  const imgs = (m.content || []).filter((p) => p.type === "image").length;
+  const fileImgs = (m.files || []).filter((f) => /\.(png|jpe?g|webp|gif|heic)$/i.test(f.file_name || "")).length;
+  const extraImgs = Math.max(0, imgs - fileImgs);
+  if (!names.length && !extraImgs) return null;
+  const box = document.createElement("div");
+  box.className = "files";
+  box.innerHTML = names.map((n) => `<span class="file" title="Сам файл в выгрузку не входит">${esc(n)}</span>`).join("")
+    + (extraImgs ? `<span class="file">${extraImgs} ${plural(extraImgs, "изображение", "изображения", "изображений")}</span>` : "");
+  return box;
+}
+function renderMessage(m) {
+  const human = m.sender === "human";
+  const el = document.createElement("article");
+  el.className = "msg " + (human ? "human" : "assistant");
+  el.innerHTML = `<div class="msg-meta"><span class="who">${human ? "Ты" : "Claude"}</span><span>${fmtTime(m.created_at)}</span><button class="copy">копировать</button></div>`;
+  el.querySelector(".copy").addEventListener("click", () => copyText(messageText(m)));
+
+  const parts = (m.content && m.content.length) ? m.content : (m.text ? [{ type: "text", text: m.text }] : []);
+  let buffer = [];
+  const flush = () => { if (buffer.length) { el.appendChild(renderSteps(buffer)); buffer = []; } };
+  for (const p of parts) {
+    if (p.type === "injected_prompt_block" || p.type === "image" || p.type === "document") continue;
+    if (p.type === "text") {
+      flush();
+      if (!p.text) continue;
+      if (human) { const b = document.createElement("div"); b.className = "bubble"; b.textContent = p.text; el.appendChild(b); }
+      else el.appendChild(renderMarkdown(p.text));
+    } else buffer.push(p);
+  }
+  flush();
+  for (const a of m.attachments || []) {
+    const d = document.createElement("details");
+    d.className = "steps";
+    d.innerHTML = `<summary>Вложение: ${esc(a.file_name || "текст")} (${Math.round((a.file_size || 0) / 1024)} КБ)</summary><div class="steps-body"><div class="step"><pre>${esc(clip(a.extracted_content, 20000))}</pre></div></div>`;
+    el.appendChild(d);
+  }
+  const chips = fileChips(m);
+  if (chips) el.appendChild(chips);
+  return el;
+}
+function renderGone(c) {
+  const msgs = c.raw.chat_messages || [];
+  const human = msgs.filter((m) => m.sender === "human").length;
+  const last = msgs.length ? msgs[msgs.length - 1].created_at : c.updated;
+  const el = document.createElement("div");
+  el.className = "gone-card";
+  el.innerHTML = `<h3>Текст этого диалога удалён</h3>
+    <p>Диалог удалили до выгрузки. Anthropic оставляет в экспорте только служебный след: даты и количество сообщений. Восстановить содержимое по нему нельзя.</p>
+    <dl class="kv"><dt>Начат</dt><dd>${fmtTime(c.created)}</dd><dt>Последнее сообщение</dt><dd>${fmtTime(last)}</dd>
+    <dt>Сообщений</dt><dd>${c.n} (твоих ${human})</dd><dt>Прикреплено файлов</dt><dd>${c.files}</dd></dl>`;
+  return el;
+}
+function markMatches(root, q) {
+  if (!q) return null;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) if (walker.currentNode.nodeValue.toLowerCase().includes(q)) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const span = document.createElement("span");
+    span.innerHTML = highlight(node.nodeValue, q);
+    node.replaceWith(...span.childNodes);
+  }
+  return root.querySelector("mark");
+}
+function openChat(id, fromHistory) {
+  const c = state.convs.find((x) => x.id === id);
+  if (!c) return;
+  state.currentId = id;
+  $("#placeholder").hidden = true; $("#chat").hidden = false;
+  $("#chatTitle").textContent = c.name || (c.filled ? "Без названия" : "Удалённый диалог");
+  $("#chatMeta").textContent = `${fmtDate(c.created)} · ${c.n} ${plural(c.n, "сообщение", "сообщения", "сообщений")}`;
+  $("#copyChat").hidden = !c.filled;
+  const thread = $("#thread");
+  thread.replaceChildren();
+  if (!c.filled) thread.appendChild(renderGone(c));
+  else for (const m of c.raw.chat_messages) if (isFilledMsg(m) || (m.files && m.files.length)) thread.appendChild(renderMessage(m));
+  $("#app").dataset.view = "chat";
+  document.querySelectorAll(".item").forEach((b) => b.setAttribute("aria-current", String(b.dataset.id === id)));
+  const pane = $("#chatPane");
+  pane.scrollTop = 0;
+  const first = markMatches(thread, state.q.trim().toLowerCase());
+  if (first) {
+    first.closest("details")?.setAttribute("open", "");
+    requestAnimationFrame(() => first.scrollIntoView({ block: "center" }));
+  }
+  // Phone back gesture should return to the list, so each opened chat gets a history entry.
+  if (!fromHistory && !state.pushed) {
+    try { history.pushState({ chat: id }, ""); state.pushed = true; } catch { state.pushed = false; }
+  }
+}
+function closeChat(silent) {
+  state.currentId = null;
+  $("#app").dataset.view = "list";
+  $("#chat").hidden = true; $("#placeholder").hidden = false;
+  if (!silent) document.querySelectorAll(".item").forEach((b) => b.setAttribute("aria-current", "false"));
+}
+function chatAsText(c) {
+  return `# ${c.name || "Без названия"}\n\n` + c.raw.chat_messages.filter(isFilledMsg)
+    .map((m) => `## ${m.sender === "human" ? "Ты" : "Claude"} · ${fmtTime(m.created_at)}\n\n${messageText(m)}`).join("\n\n");
+}
+
+/* ---------- events ---------- */
+$("#fileInput").addEventListener("change", (e) => { loadFiles(e.target.files); e.target.value = ""; });
+$("#q").addEventListener("input", (e) => { state.q = e.target.value; renderList(); });
+document.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => {
+  state.filter = b.dataset.filter;
+  document.querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  renderList();
+  try { localStorage.setItem("archive-filter", state.filter); } catch { /* ignore */ }
+}));
+$("#groups").addEventListener("click", (e) => { const b = e.target.closest(".item"); if (b) openChat(b.dataset.id); });
+$("#back").addEventListener("click", () => { if (state.pushed) history.back(); else closeChat(); });
+window.addEventListener("popstate", () => { state.pushed = false; closeChat(); });
+$("#copyChat").addEventListener("click", () => { const c = state.convs.find((x) => x.id === state.currentId); if (c) copyText(chatAsText(c)); });
+$("#status").addEventListener("click", async (e) => {
+  if (e.target.id !== "forget") return;
+  await db.del("raw"); useData(DEMO, true); toast("Файл удалён с устройства");
+});
+document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", (e) => { e.preventDefault(); loadFiles(e.dataTransfer.files); });
+
+/* ---------- example data, shown until a real export is opened ---------- */
+const DEMO = [
+  { uuid: "demo-1", name: "Пример: как читать выгрузку", summary: "", created_at: "2026-10-14T18:02:00Z", updated_at: "2026-10-14T18:06:00Z",
+    chat_messages: [
+      { uuid: "d1", sender: "human", text: "Что лежит в conversations.json?", content: [], files: [], attachments: [], created_at: "2026-10-14T18:02:00Z" },
+      { uuid: "d2", sender: "assistant", text: "Это **пример**, а не твои данные.\n\nВ файле лежит список диалогов. У каждого есть:\n\n| Поле | Что это |\n|---|---|\n| `name` | название диалога |\n| `created_at` | когда начат |\n| `chat_messages` | сообщения по порядку |\n\nУ удалённых диалогов название и текст пустые.", content: [], files: [], attachments: [], created_at: "2026-10-14T18:02:20Z" },
+    ] },
+  { uuid: "demo-2", name: "", summary: "", created_at: "2026-09-03T08:10:00Z", updated_at: "2026-09-03T08:40:00Z",
+    chat_messages: Array.from({ length: 6 }, (_, i) => ({ uuid: "g" + i, sender: i % 2 ? "assistant" : "human", text: "", content: [], files: [], attachments: [], created_at: `2026-09-03T08:${10 + i * 5}:00Z` })) },
+];
+
+(async function init() {
+  try { const f = localStorage.getItem("archive-filter"); if (f) document.querySelector(`.chip[data-filter="${f}"]`)?.click(); } catch { /* ignore */ }
+  const saved = await db.get("raw");
+  if (saved) { try { useData(JSON.parse(saved), false); return; } catch { /* fall back to example */ } }
+  useData(DEMO, true);
+})();
+})();
+</script>

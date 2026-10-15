@@ -1,0 +1,6 @@
+# Личные выгрузки не коммитим
+*.zip
+conversations*.json
+users.json
+projects.json
+memories.json
